@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Reprocesso</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #f4f4f4;
+            padding: 10px;
+        }
+        .planilha-container {
+            width: 95%;
+            max-width: 800px;
+            margin: 15px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 2px 2px 10px #aaa;
+        }
+        .table-container {
+            width: 100%;
+            overflow-x: auto; /* Permite rolagem horizontal */
+        }
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            min-width: 600px; /* Mantém legível em mobile */
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        .excel-table th {
+            background: #e9ecef;
+        }
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        button {
+            padding: 12px;
+            border: none;
+            background: #28a745;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #218838;
+        }
+        .total {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        /* Ajustes para telas pequenas */
+        @media (max-width: 600px) {
+            body {
+                font-size: 14px;
+            }
+            .planilha-container {
+                padding: 15px;
+            }
+            button {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Planilha de Entrada -->
+    <div class="planilha-container">
+        <h2>Planilha de Entrada</h2>
+        <div class="table-container">
+            <table id="entrada" class="excel-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Turno</th>
+                        <th>Código</th>
+                        <th>Tipo</th>
+                        <th>Quantidade</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td contenteditable="true">2025-03-28</td>
+                        <td contenteditable="true">Manhã</td>
+                        <td contenteditable="true">001</td>
+                        <td contenteditable="true">Produto A</td>
+                        <td contenteditable="true" oninput="atualizarTotal('entrada')">100</td>
+                        <td><button onclick="removerLinha(this, 'entrada')">🗑️</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="total">Total de Entrada: <span id="totalEntrada">100</span></div>
+
+        <div class="buttons">
+            <button onclick="adicionarLinha('entrada')">➕ Adicionar Linha</button>
+            <button onclick="baixarPlanilhaUnica('entrada', 'Planilha_Entrada.xlsx')">💾 Salvar Planilha de Entrada</button>
+        </div>
+    </div>
+
+    <!-- Planilha de Saída -->
+    <div class="planilha-container">
+        <h2>Planilha de Saída</h2>
+        <div class="table-container">
+            <table id="saida" class="excel-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Turno</th>
+                        <th>Código</th>
+                        <th>Tipo</th>
+                        <th>Quantidade</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td contenteditable="true">2025-03-29</td>
+                        <td contenteditable="true">Tarde</td>
+                        <td contenteditable="true">002</td>
+                        <td contenteditable="true">Produto B</td>
+                        <td contenteditable="true" oninput="atualizarTotal('saida')">50</td>
+                        <td><button onclick="removerLinha(this, 'saida')">🗑️</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="total">Total de Saída: <span id="totalSaida">50</span></div>
+
+        <div class="buttons">
+            <button onclick="adicionarLinha('saida')">➕ Adicionar Linha</button>
+            <button onclick="baixarPlanilhaUnica('saida', 'Planilha_Saida.xlsx')">💾 Salvar Planilha de Saída</button>
+        </div>
+    </div>
+
+    <button onclick="baixarPlanilhas()">📂 Salvar Ambas</button>
+
+    <script>
+        function adicionarLinha(tabelaId) {
+            const tabela = document.getElementById(tabelaId).getElementsByTagName('tbody')[0];
+            const novaLinha = tabela.insertRow();
+            
+            for (let i = 0; i < 4; i++) {
+                const celula = novaLinha.insertCell(i);
+                celula.contentEditable = true;
+            }
+
+            const celulaQuantidade = novaLinha.insertCell(4);
+            celulaQuantidade.contentEditable = true;
+            celulaQuantidade.oninput = function() { atualizarTotal(tabelaId); };
+
+            const celulaRemover = novaLinha.insertCell(5);
+            celulaRemover.innerHTML = `<button onclick="removerLinha(this, '${tabelaId}')">🗑️</button>`;
+
+            atualizarTotal(tabelaId);
+        }
+
+        function removerLinha(botao, tabelaId) {
+            if (confirm("Deseja realmente remover esta linha?")) {
+                const linha = botao.closest('tr');
+                linha.remove();
+                atualizarTotal(tabelaId);
+            }
+        }
+
+        function atualizarTotal(tabelaId) {
+            let total = 0;
+            document.querySelectorAll(`#${tabelaId} tbody tr`).forEach(linha => {
+                let quantidade = linha.cells[4].innerText.trim();
+                if (!isNaN(quantidade) && quantidade !== "") {
+                    total += parseInt(quantidade);
+                }
+            });
+            document.getElementById(tabelaId === 'entrada' ? 'totalEntrada' : 'totalSaida').innerText = total;
+        }
+
+        function baixarPlanilhaUnica(tabelaId, nomeArquivo) {
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.table_to_sheet(document.getElementById(tabelaId));
+            XLSX.utils.book_append_sheet(wb, ws, tabelaId);
+            XLSX.writeFile(wb, nomeArquivo);
+        }
+
+        function baixarPlanilhas() {
+            const wb = XLSX.utils.book_new();
+            const wsEntrada = XLSX.utils.table_to_sheet(document.getElementById('entrada'));
+            const wsSaida = XLSX.utils.table_to_sheet(document.getElementById('saida'));
+            XLSX.utils.book_append_sheet(wb, wsEntrada, "Entrada");
+            XLSX.utils.book_append_sheet(wb, wsSaida, "Saída");
+            XLSX.writeFile(wb, 'Planilhas_Completas.xlsx');
+        }
+    </script>
+
+</body>
+</html>
